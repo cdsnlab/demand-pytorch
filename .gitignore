@@ -1,0 +1,21 @@
+# Checkpoints
+*.pth
+*.pt
+*.pytorch 
+
+# Data
+*.h5
+*.npy
+*.csv
+*.npz
+*.pkl
+*.pickle
+*.txt
+
+# Cache
+__pycache__/
+*.pyc
+
+# Log
+events.out.tfevents*
+results/*

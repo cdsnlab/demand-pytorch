@@ -8,6 +8,7 @@ class BaseConfig:
         self.test_batch_size = 1
         self.num_his = 12 
         self.num_pred = 3
+        self.offset = 12
         self.dataset_dir = dataset_dir 
         self.dataset_name = dataset_name
         self.train_ratio = train_ratio 
@@ -20,8 +21,9 @@ class BaseConfig:
         # Train 
         self.optimizer = 'Adam'
         self.loss = 'MaskedMAE'
-        self.metrics = ['MaskedMAE']
+        self.metrics = ['MaskedRMSE']
         self.scheduler = 'MultiStepLR'
+        self.lr = 2e-3
         self.scheduler_args = {
 			"milestones": [20, 30, 40, 50],
             "gamma": 0.1

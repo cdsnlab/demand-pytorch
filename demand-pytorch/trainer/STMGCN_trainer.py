@@ -21,7 +21,7 @@ class STMGCNTrainer(BaseTrainer):
             data = pickle.load(file)
         datasets = {}
         for category in ['train', 'val', 'test']:
-            x, y = seq2instance(data[category][0].reshape(data[category][0].shape[0], -1), self.config.num_his, self.config.num_pred)
+            x, y = seq2instance(data[category].reshape(data[category].shape[0], -1), self.config.num_his, self.config.num_pred, offset=self.config.offset)
             if category == 'train':
                 self.mean, self.std = np.mean(x), np.std(x)
             x = (x - self.mean) / self.std 
@@ -63,6 +63,7 @@ class STMGCNTrainer(BaseTrainer):
             output = self.model(data, [adj])
             output = output * self.std 
             output = output + self.mean
+            output = output.unsqueeze(1)
 
             loss = self.loss(output, target) 
             loss.backward()
@@ -96,6 +97,7 @@ class STMGCNTrainer(BaseTrainer):
                 output = self.model(data, [adj])
             output = output * self.std 
             output = output + self.mean
+            output = output.unsqueeze(1)
 
             loss = self.loss(output, target) 
 

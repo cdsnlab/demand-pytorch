@@ -98,7 +98,7 @@ class BaseTrainer:
         try:
             # TODO Allow different types of optimizer like I did in scheduler 
             optim_class = getattr(importlib.import_module('torch.optim'), self.config.optimizer)
-            self.optimizer = optim_class(self.model.parameters(), lr=1e-4)
+            self.optimizer = optim_class(self.model.parameters(), lr=self.config.lr)
         except:
             print(toRed('Error loading optimizer: {}'.format(self.config.optimizer)))
             raise 

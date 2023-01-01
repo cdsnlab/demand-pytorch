@@ -24,14 +24,14 @@ def load_pickle(pickle_file):
     return pickle_data
 
 
-def seq2instance(data, num_his, num_pred):
+def seq2instance(data, num_his, num_pred, offset=0):
     num_step, dims = data.shape
-    num_sample = num_step - num_his - num_pred + 1
+    num_sample = num_step - num_his - num_pred - offset + 1
     x = np.zeros((num_sample, num_his, dims))
     y = np.zeros((num_sample, num_pred, dims))
     for i in range(num_sample):
         x[i] = data[i: i + num_his, :]
-        y[i] = data[i + num_his: i + num_his + num_pred, :]
+        y[i] = data[i + offset + num_his: i + offset + num_his + num_pred, :]
     return x, y
 
 # TODO: finishe preprocessing for multiple velocity comp

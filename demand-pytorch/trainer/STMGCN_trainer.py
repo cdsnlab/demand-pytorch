@@ -21,7 +21,7 @@ class STMGCNTrainer(BaseTrainer):
             data = pickle.load(file)
         datasets = {}
         for category in ['train', 'val', 'test']:
-            x, y = seq2instance(data[category].reshape(data[category].shape[0], -1), self.config.num_his, self.config.num_pred)
+            x, y = seq2instance(data[category][0].reshape(data[category][0].shape[0], -1), self.config.num_his, self.config.num_pred)
             if category == 'train':
                 self.mean, self.std = np.mean(x), np.std(x)
             x = (x - self.mean) / self.std 
@@ -61,7 +61,6 @@ class STMGCNTrainer(BaseTrainer):
             self.optimizer.zero_grad()
 
             output = self.model(data, [adj])
-            output = output[:, -self.config.num_pred:]
             output = output * self.std 
             output = output + self.mean
 
@@ -95,7 +94,6 @@ class STMGCNTrainer(BaseTrainer):
 
             with torch.no_grad():
                 output = self.model(data, [adj])
-            output = output[:, -self.config.num_pred:]
             output = output * self.std 
             output = output + self.mean
 

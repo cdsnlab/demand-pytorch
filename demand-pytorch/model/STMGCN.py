@@ -104,6 +104,7 @@ class STMGCNModel(nn.Module):
         #          gcn_hidden_dim:int, sta_kernel_config:dict, gconv_use_bias:bool, gconv_activation=nn.ReLU
         self.M = config.M
         self.sta_K = self.get_support_K(config.sta_kernel_config)
+        self.num_pred = config.num_pred
 
         # initiate one pair of CG_LSTM & GCN for each adj input
         self.rnn_list, self.gcn_list = nn.ModuleList(), nn.ModuleList()
@@ -146,14 +147,19 @@ class STMGCNModel(nn.Module):
         '''
         assert len(sta_adj_list) == self.M
         batch_size = obs_seq.shape[0]
-        hidden_list = self.init_hidden_list(batch_size)
-
-        feat_list = list()
-        for m in range(self.M):
-            cg_rnn_out, hidden_list[m] = self.rnn_list[m](sta_adj_list[m], obs_seq, hidden_list[m])
-            gcn_out = self.gcn_list[m](sta_adj_list[m], cg_rnn_out)
-            feat_list.append(gcn_out)
-        feat_fusion = torch.sum(torch.stack(feat_list, dim=-1), dim=-1)     # aggregation
-
-        output = self.fc(feat_fusion)
+        output = None
+        for i in range(self.num_pred):
+            hidden_list = self.init_hidden_list(batch_size)
+            feat_list = list()
+            for m in range(self.M):
+                cg_rnn_out, hidden_list[m] = self.rnn_list[m](sta_adj_list[m], obs_seq, hidden_list[m])
+                gcn_out = self.gcn_list[m](sta_adj_list[m], cg_rnn_out)
+                feat_list.append(gcn_out)
+            feat_fusion = torch.sum(torch.stack(feat_list, dim=-1), dim=-1)     # aggregation
+            res = self.fc(feat_fusion).unsqueeze(1)
+            obs_seq = torch.cat([obs_seq[:, 1:], res], axis=1)
+            if output == None:
+                output = res
+            else:
+                output = torch.cat([output, res], axis=1)
         return output

@@ -18,8 +18,10 @@ def load_args():
         help='Train set ratio (default: 0.7)')
     parser.add_argument('-test_ratio', '--test_ratio', default=0.2, type=float,
         help='Test set ratio (default: 0.2)')
-    parser.add_argument('-num_pred', '--num_pred', default=3, type=int,
+    parser.add_argument('-num_pred', '--num_pred', default=1, type=int,
         help='Time to predict')
+    parser.add_argument('-offset', '--offset', default=12, type=int,
+        help='Time offset')
     parser.add_argument('-device', '--device', default='cuda:0', type=str,
         help='GPU to enable (default: cuda:0)')
     args = parser.parse_args()
@@ -36,6 +38,7 @@ def load_trainer(args):
         confg_class = getattr(importlib.import_module("config.{}".format(args.config)), args.config)
         config = confg_class(args.device, args.ddir, args.dname, args.train_ratio, args.test_ratio)
         config.num_pred = args.num_pred
+        config.offset = args.offset
     except:
         print(toRed('Config undefined'))
         raise 

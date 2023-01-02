@@ -68,7 +68,7 @@ def load_meteorol(timeslots):
 
     for slot in timeslots:
         predicted_id = M[slot]
-        cur_id = predicted_id - 1
+        cur_id = predicted_id - 1 # predicted E_t = E_(t-1)
         WS.append(WindSpeed[cur_id])
         WR.append(Weather[cur_id])
         TE.append(Temperature[cur_id])

@@ -97,7 +97,7 @@ class STResNetTrainer(BaseTrainer):
                 x_c = [self.get_matrix(pd_timestamps[i] - j * offset_frame) for j in depends[0]]
                 x_p = [self.get_matrix(pd_timestamps[i] - j * offset_frame) for j in depends[1]]
                 x_t = [self.get_matrix(pd_timestamps[i] - j * offset_frame) for j in depends[2]]
-                e = data[category][1][self.get_index[pd_timestamps[i-1]]]
+                e = data[category][1][self.get_index[pd_timestamps[i]]]
                 y = self.get_matrix(pd_timestamps[i])
 
                 if self.len_closeness > 0:

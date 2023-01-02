@@ -11,6 +11,13 @@ We report MAE in Beijing taxi flow prediction dataset for each prediction steps.
 | STResNet | | | | |
 | DeepSTN  | | | | |
 
+RMSE
+| Model | bj-flow (15 min) | bj-flow  (30 min) | bj-flow (1 hour) |
+|-------|--|--|--|
+| ConvLSTM | | 19.27 | | |
+| STResNet | | | | |
+| DeepSTN  | | | | |
+
 ## Getting Started
 
 ### Data

@@ -18,5 +18,5 @@ class STResNet_config(BaseConfig):
         self.nb_residual_unit=12
         self.loss = 'MaskedRMSE'
         self.metrics = ['MaskedRMSE']
-        self.lr = 2e-5
+        self.lr = 5e-5
         self.total_epoch = 100 

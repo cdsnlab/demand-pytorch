@@ -14,7 +14,7 @@ We report MAE in Beijing taxi flow prediction dataset for each prediction steps.
 RMSE
 | Model | bj-flow (15 min) | bj-flow  (30 min) | bj-flow (1 hour) |
 |-------|--|--|--|
-| ConvLSTM | | 19.27 | | |
+| ConvLSTM | | 17.38 | | |
 | STResNet | | | | |
 | DeepSTN  | | | | |
 

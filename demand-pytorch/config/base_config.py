@@ -27,5 +27,5 @@ class BaseConfig:
             "gamma": 0.1
         }
         self.null_value = 0.0
-        self.total_epoch = 60 
+        self.total_epoch = 350
         self.valid_every_epoch = 4 # Validate epoch

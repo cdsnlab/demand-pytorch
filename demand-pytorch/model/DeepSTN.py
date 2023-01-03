@@ -27,25 +27,58 @@ class ResPlus(nn.Module):
         z1 = F.relu(z1)
         z1 = self.drop(z1)
         z1 = self.conv1(z1)
-        print("z1", z1.shape)
         
         z2 = F.relu(x)
         z2 = self.bn1(z2)
-        print("z2", z2.shape)
         z2 = self.plus_conv(z2)
-        print("z2", z2.shape)
         z2 = z2.reshape((z2.shape[0], self.out_channels, self.H, self.W))
-        print("z2", z2.shape)
         
         z3 = np.concatenate((z1.cpu().detach().numpy(),z2.cpu().detach().numpy()), axis=1)
         z3 =torch.Tensor(z3).cuda()
-        print("z3", z3.shape)
+
         z3 = self.bn2(z3)
         z3 = F.relu(z3)
         z3 = self.drop(z3)
         z3 = self.conv2(z3)
-        print("z3", z3.shape)
+
         return z3 + x
+
+class Time_trans(nn.Module):
+    def __init__(self, T_F):
+        # It takes in a four dimensional input (B, C, lng, lat)
+        super(Time_trans, self).__init__()
+        self.T_feat = T_F
+        self.convm = nn.Conv2d(in_channels=31, out_channels=T_F, kernel_size=1)
+        self.convf = nn.Conv2d(in_channels=T_F, out_channels=1, kernel_size=1)
+
+    def forward(self, x):
+        
+        z = self.convm(x)
+        z = F.relu(z)
+        z = self.convf(z)
+        z = F.relu(z)
+
+        return z
+    
+
+class PoI_trans(nn.Module):
+    def __init__(self, PoI_N, PT_feat, T_feat):
+        # It takes in a four dimensional input (B, C, lng, lat)
+        super(PoI_trans, self).__init__()
+        self.PoI_N = PoI_N
+        self.PT_feat = PT_feat
+        self.T_feat = T_feat
+        self.time_trans =  Time_trans(T_F= T_feat)
+        self.conv = nn.Conv2d(in_channels=PoI_N, out_channels=PT_feat, kernel_size=1)
+    
+    def forward(self, poi, time):
+        T_x = self.time_trans(time)
+        T_x = np.tile(T_x.cpu().detach().numpy(), (1, self.PoI_N, 1,1))
+        poi_time = T_x * poi.cpu().detach().numpy()
+        poi_time =torch.Tensor(poi_time).cuda()
+        poi_time = self.conv(poi_time)
+        return poi_time
+    
 
 class DeepSTNModel(nn.Module):
     def __init__(self, config):
@@ -56,6 +89,10 @@ class DeepSTNModel(nn.Module):
         self.channel = config.channel
         self.map_heigh = config.heigh
         self.map_width = config.width
+        self.RP_N = config.RP_N
+        self.PoI_N = config.PoI_N
+        self.PT_F = config.PT_F
+        self.T_feat = config.T_feat
         
         self.all_channel = self.channel * (self.c+self.p+self.t)
             
@@ -68,38 +105,42 @@ class DeepSTNModel(nn.Module):
         self.convp = nn.Conv2d(self.channel*self.p, 64, kernel_size=1, stride = 1, padding =0).cuda()
         self.convt = nn.Conv2d(self.channel*self.t, 64, kernel_size=1, stride = 1, padding =0).cuda()
         
-        self.bn1 = nn.BatchNorm2d(64*3)
+        self.bn1 = nn.BatchNorm2d(64*3 + self.PT_F)
         self.drop = nn.Dropout(0.1)
-        self.conv1 = nn.Conv2d(64*3, 64, kernel_size=1, stride = 1, padding =0)
+        self.conv1 = nn.Conv2d(64*3 + self.PT_F, 64, kernel_size=1, stride = 1, padding =0)
         
         self.net = ResPlus(64, 8, self.map_heigh, self.map_width)
         
         self.bn2 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 2, kernel_size=1, stride = 1, padding =0)
         
+        self.poi_trans = PoI_trans(PoI_N=self.PoI_N, PT_feat=self.PT_F, T_feat=self.T_feat)
+        
 
     def forward(self, x):
-        print(x.shape)
         c_input = x[:,self.cut0:self.cut1,:,:].float().cuda()
         p_input = x[:,self.cut1:self.cut2,:,:].float().cuda()
         t_input = x[:,self.cut2:self.cut3,:,:].float().cuda()
-        print(c_input.shape)
+
         c_input = self.convc(c_input)
         p_input = self.convp(p_input)
         t_input = self.convt(t_input)
-        print(c_input.shape)
         
-        cpt_con1 = np.concatenate((c_input.cpu().detach().numpy(), p_input.cpu().detach().numpy(), t_input.cpu().detach().numpy()), axis=1)
+        poi_in = x[:, -(self.PoI_N + 31):-31,:,:]
+        time_in = x[:,-31:,:,:]
+        
+        poi_time = self.poi_trans(poi_in, time_in)
+        
+        
+        cpt_con1 = np.concatenate((c_input.cpu().detach().numpy(), p_input.cpu().detach().numpy(), t_input.cpu().detach().numpy(), poi_time.cpu().detach().numpy()), axis=1)
         cpt_con1 =torch.Tensor(cpt_con1).cuda()
         cpt = F.relu(cpt_con1)
-        print(cpt.shape)
+
         cpt = self.bn1(cpt)
         cpt = self.drop(cpt)
-        cpt = self.conv1(cpt)
-        print(cpt.shape)
+        cpt = self.conv1(cpt)        
         
-        cpt = self.net(cpt)
-        cpt = self.net(cpt)
+        for _ in range(self.RP_N): cpt = self.net(cpt)
         
         cpt2 = F.relu(cpt)
         cpt2 = self.bn2(cpt2)

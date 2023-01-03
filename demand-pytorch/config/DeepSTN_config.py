@@ -5,11 +5,6 @@ class DeepSTN_config(BaseConfig):
         # Data, Train
         super().__init__(device, dataset_dir, dataset_name, train_ratio, test_ratio)
 
-        self.input_dim = 2
-        self.hidden_dim = [64 for _ in range(5)] + [2]
-        self.num_cells = 6
-        self.kernel_size = [[3, 3] for _ in range(6)]
-        self.bias = True 
         self.batch_size = 16 
         self.c = 3
         self.p = 4
@@ -17,3 +12,7 @@ class DeepSTN_config(BaseConfig):
         self.channel = 2
         self.heigh = 21
         self.width = 12
+        self.RP_N = 2
+        self.PoI_N = 9
+        self.PT_F = 6
+        self.T_feat = 28

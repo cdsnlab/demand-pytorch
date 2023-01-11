@@ -11,11 +11,16 @@ We report MAE in Beijing taxi flow prediction dataset for each prediction steps.
 | STResNet | | | | |
 | DeepSTN  | | | | |
 
+We report RMSE and MAPE in NYC taxi flow prediction dataset.
+| Model | RMSE | MAPE | 
+|-------|--|--|
+| DMVST-Net | |
+
 ## Getting Started
 
 ### Data
 - Beijing Taxi: download bj-flow.pickle from [Google Drive]()
-- NYC Bike:
+- NYC Taxi:
 
 ### Environment
 ``` 

@@ -55,3 +55,22 @@ class MaskedMAPE(nn.Module):
         loss = torch.abs(torch.divide(torch.subtract(preds, labels), labels))
         loss = torch.nan_to_num(loss * mask)
         return torch.mean(loss)
+
+class RMSE(nn.Module):
+    def __init__(self): 
+        super().__init__()
+
+    def forward(self, preds, labels):
+        loss = torch.pow(preds - labels, 2)
+        loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
+        return torch.sqrt(torch.mean(loss))
+
+class MAPE(nn.Module):
+    def __init__(self): 
+        super().__init__()
+
+    def forward(self, preds, labels):
+        loss = torch.abs(torch.divide(torch.subtract(preds, labels), labels))
+        loss = torch.where(loss>1e+20, 0, loss)
+        loss = torch.nan_to_num(loss)
+        return torch.mean(loss)

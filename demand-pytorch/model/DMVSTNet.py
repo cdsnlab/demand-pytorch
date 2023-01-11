@@ -35,12 +35,17 @@ class DMVSTNetModel(nn.Module):
         self.unfold = nn.Unfold(kernel_size=7, padding=3)
         self.spatial_conv = nn.Conv2d(config.cnn_hidden*7*7, 64, 3, 1, 1)
         
-        self.lstm = nn.LSTM(input_size=64+config.cnn_hidden, hidden_size=config.lstm_hidden, num_layers=config.lstm_layers, batch_first=True)
+        self.lstm = nn.LSTM(input_size=64+config.lstm_feature, hidden_size=config.lstm_hidden, num_layers=config.lstm_layers, batch_first=True)
         self.topo_dense = nn.Linear(32, 6)
 
         self.final_dense = nn.Linear(config.lstm_hidden+6, config.output_dim)
 
-    def forward(self, x: torch.Tensor, topo_input):
+    def forward(self, x: torch.Tensor, lstm_input, topo_input):
+        '''
+        x: tensor of shape (batch_size, num_his, input_dim, w, h)
+        lstm_input: tensor of shape (batch_size, num_his, lstm_feature, w, h)
+        topo_input: tensor of shape (batch_size, embed_size, w, h)
+        '''
         x = self.conv1(x)
         x = self.bn1(x.transpose(2, 1)).transpose(2, 1)
         x = self.conv2(x)
@@ -52,9 +57,9 @@ class DMVSTNetModel(nn.Module):
         spatial = self.unfold(x)
         spatial = spatial.reshape(b*t, -1, w, h)
         spatial = self.spatial_conv(spatial)
-        
-        spatial: torch.Tensor = torch.cat([x, spatial], axis=1)
+
         spatial = spatial.reshape(b, t, spatial.size(1), w, h)
+        spatial = torch.cat([lstm_input, spatial], axis=2)
         spatial = spatial.reshape(b, t, spatial.size(2), w*h)
         spatial = spatial.permute(dims=(0, 3, 1, 2))
         spatial = spatial.reshape(b*spatial.size(1), t, -1)
@@ -72,9 +77,6 @@ class DMVSTNetModel(nn.Module):
         out = out.view(b, w*h, -1)
         out = out.transpose(2, 1)
         out = out.view(b, -1, w, h)
-        return out
+        out = out.permute(dims=(0, 2, 3, 1))
 
-# x = torch.zeros((4, 12, 2, 32, 32))
-# topo_input = torch.zeros((4, 32, 32, 32))
-# net = DMVSTNetModel(cfg)
-# net.forward(x, topo_input)
+        return out

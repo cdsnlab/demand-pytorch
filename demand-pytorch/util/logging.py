@@ -43,13 +43,13 @@ def print_progress(phase, epoch, max_epoch, iter, max_iter, iter_time, loss_name
         toWhite('ETA') + toGreen(' {:5.2f}s'.format(iter_time * (max_iter-iter))),
         toWhite('LOSS'),
         toWhite(loss_name.replace('_loss', '')),
-        '{:.2f}'.format(loss_val),
+        '{:.4f}'.format(loss_val),
         toWhite('METRIC')
         )
     )
 
     for name, val in zip(metric_names, metric_vals):
-        sys.stdout.write('{} {:.2f} '.format(toWhite(name.replace('_np','')), val))
+        sys.stdout.write('{} {:.4f} '.format(toWhite(name.replace('_np','')), val))
     
     sys.stdout.write('\n')
 
@@ -59,12 +59,12 @@ def print_total(phase, epoch, max_epoch, loss_name, loss_val, metric_names, metr
         toWhite('{} '.format('EP')) + toCyan('{}/{}'.format(epoch, max_epoch)),
         toWhite('AVG LOSS'),
         toWhite(loss_name.replace('_loss', '')),
-        '{:.2f}'.format(loss_val),
+        '{:.4f}'.format(loss_val),
         toWhite('AVG METRIC')
         )
     )
 
     for name, val in zip(metric_names, metric_vals):
-        sys.stdout.write('{} {:.2f} '.format(toWhite(name.replace('_np','')), val))
+        sys.stdout.write('{} {:.4f} '.format(toWhite(name.replace('_np','')), val))
     
     sys.stdout.write('\n\n')

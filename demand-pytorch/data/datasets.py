@@ -63,3 +63,20 @@ class STSSLDataset(Dataset):
 
     def __len__(self):
         return self.x.shape[0]
+
+class DMVSTNetDataset(Dataset):
+    def __init__(self, data):
+        self.cnn = data['cnn']
+        self.flow = data['flow']
+        self.topo = data['topo']
+        self.y = data['y']
+
+    def __getitem__(self, index):
+        cnn = torch.tensor(self.cnn[index])
+        flow = torch.tensor(self.flow[index]).permute(dims=(0, 3, 1, 2))
+        topo = torch.tensor(self.topo[index]).permute(dims=(2, 0, 1)).reshape(-1, 10, 20)
+        y = torch.tensor(self.y[index])
+        return cnn, flow, topo, y
+
+    def __len__(self):
+        return self.cnn.shape[0]

@@ -20,13 +20,13 @@ class BaseConfig:
 
         # Train 
         self.optimizer = 'Adam'
-        self.loss = 'MaskedMAE'
-        self.metrics = ['MaskedRMSE']
+        self.loss = 'RMSE'
+        self.metrics = ['MAPE']
         self.scheduler = 'MultiStepLR'
-        self.lr = 2e-3
+        self.lr = 1e-3
         self.scheduler_args = {
 			"milestones": [20, 30, 40, 50],
-            "gamma": 0.1
+            "gamma": 0.5
         }
         self.null_value = 0.0
         self.total_epoch = 60 

@@ -48,3 +48,18 @@ class STResNetDataset(Dataset):
 
     def __len__(self):
         return self.x[0].shape[0]
+
+class STSSLDataset(Dataset):
+    def __init__(self, data):
+        self.x = data['x']
+        self.y = data['y']
+        print(self.x.shape)
+        print(self.y.shape)
+
+    def __getitem__(self, index):
+        x = self.x[index]
+        y = self.y[index]
+        return torch.tensor(x), torch.tensor(y)
+
+    def __len__(self):
+        return self.x.shape[0]

@@ -5,7 +5,7 @@ class DeepSTN_config(BaseConfig):
         # Data, Train
         super().__init__(device, dataset_dir, dataset_name, train_ratio, test_ratio)
 
-        self.batch_size = 16 
+        self.batch_size = 32
         self.c = 3
         self.p = 4
         self.t = 4
@@ -16,3 +16,4 @@ class DeepSTN_config(BaseConfig):
         self.PoI_N = 9
         self.PT_F = 6
         self.T_feat = 28
+        self.T_interval = 24

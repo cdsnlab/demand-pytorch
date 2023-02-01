@@ -47,7 +47,7 @@ class DeepSTNTrainer(BaseTrainer):
             matrix_day[i,time_day[i],:,:]=1
         #con
         matrix_T=np.concatenate((matrix_hour,matrix_day),axis=1)
-
+        
         
         if len_trend>0:
             number_of_skip_hours=T_trend*len_trend

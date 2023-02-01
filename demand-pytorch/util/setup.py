@@ -2,6 +2,12 @@ import argparse
 from util.logging import *
 import importlib
 
+# for pretraining model parser
+def name_parser(text):
+    if text.find("_pretrain"):
+        new_text = text.replace("_pretrain", "")
+    return new_text
+
 def load_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-mode', '--mode', default='traffic', type=str,
@@ -24,7 +30,7 @@ def load_args():
         help='GPU to enable (default: cuda:0)')
     args = parser.parse_args()
     if args.config == None:
-        args.config = '{}_config'.format(args.model)
+        args.config = '{}_config'.format(name_parser(args.model))
     if args.train_ratio + args.test_ratio > 1.0:
         print(toRed('Sum of train ratio and test ratio exceeds 1.0'))
         raise ValueError
@@ -41,7 +47,7 @@ def load_trainer(args):
         raise 
     print(toGreen('Config loaded succesfully'))
     try: 
-        model_class = getattr(importlib.import_module("model.{}".format(args.model)), "{}Model".format(args.model))
+        model_class = getattr(importlib.import_module("model.{}".format(name_parser(args.model))), "{}Model".format(name_parser(args.model)))
         trainer_class = getattr(importlib.import_module("trainer.{}_trainer".format(args.model)), "{}Trainer".format(args.model))
         trainer = trainer_class(model_class, config, args)
         if args.mode not in ['traffic', 'demand']: 

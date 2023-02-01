@@ -44,11 +44,11 @@ class ResPlus(nn.Module):
         return z3 + x
 
 class Time_trans(nn.Module):
-    def __init__(self, T_F):
+    def __init__(self, T_F, T_interval):
         # It takes in a four dimensional input (B, C, lng, lat)
         super(Time_trans, self).__init__()
         self.T_feat = T_F
-        self.convm = nn.Conv2d(in_channels=31, out_channels=T_F, kernel_size=1)
+        self.convm = nn.Conv2d(in_channels=T_interval+7, out_channels=T_F, kernel_size=1)
         self.convf = nn.Conv2d(in_channels=T_F, out_channels=1, kernel_size=1)
 
     def forward(self, x):
@@ -62,13 +62,13 @@ class Time_trans(nn.Module):
     
 
 class PoI_trans(nn.Module):
-    def __init__(self, PoI_N, PT_feat, T_feat):
+    def __init__(self, PoI_N, PT_feat, T_feat, T_interval):
         # It takes in a four dimensional input (B, C, lng, lat)
         super(PoI_trans, self).__init__()
         self.PoI_N = PoI_N
         self.PT_feat = PT_feat
         self.T_feat = T_feat
-        self.time_trans =  Time_trans(T_F= T_feat)
+        self.time_trans =  Time_trans(T_F= T_feat, T_interval= T_interval)
         self.conv = nn.Conv2d(in_channels=PoI_N, out_channels=PT_feat, kernel_size=1)
     
     def forward(self, poi, time):
@@ -93,6 +93,7 @@ class DeepSTNModel(nn.Module):
         self.PoI_N = config.PoI_N
         self.PT_F = config.PT_F
         self.T_feat = config.T_feat
+        self.T_interval = config.T_interval
         
         self.all_channel = self.channel * (self.c+self.p+self.t)
             
@@ -114,7 +115,7 @@ class DeepSTNModel(nn.Module):
         self.bn2 = nn.BatchNorm2d(64)
         self.conv2 = nn.Conv2d(64, 2, kernel_size=1, stride = 1, padding =0)
         
-        self.poi_trans = PoI_trans(PoI_N=self.PoI_N, PT_feat=self.PT_F, T_feat=self.T_feat)
+        self.poi_trans = PoI_trans(PoI_N=self.PoI_N, PT_feat=self.PT_F, T_feat=self.T_feat, T_interval= self.T_interval)
         
 
     def forward(self, x):
@@ -126,8 +127,8 @@ class DeepSTNModel(nn.Module):
         p_input = self.convp(p_input)
         t_input = self.convt(t_input)
         
-        poi_in = x[:, -(self.PoI_N + 31):-31,:,:]
-        time_in = x[:,-31:,:,:]
+        poi_in = x[:, -(self.PoI_N + self.T_interval + 7):-(self.T_interval + 7),:,:]
+        time_in = x[:,-(self.T_interval+7):,:,:]
         
         poi_time = self.poi_trans(poi_in, time_in)
         

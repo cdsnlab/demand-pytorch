@@ -172,7 +172,6 @@ class MyGRUCell(nn.Module):
                 torch.reshape(state, (n * b, -1)) for state in begin_state
             ] # [n * b, d]
             data, state = self.cell(data.cuda(), begin_state[0].unsqueeze(0)) 
-            # 조심
         else:
             data, state = self.cell(data)
         # reshape the data & states back

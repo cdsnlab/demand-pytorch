@@ -275,7 +275,7 @@ class Decoder(nn.Module):
         return float(random.random() < threshold)        
         
     def forward(self, label, feature, begin_states, is_training):
-        label = torch.reshape(label, (1024, -1, 3, 2))
+        label = torch.reshape(label, (1024, -1, 1, 2))
         num_nodes, batch_size, seq_len, _ = label.shape 
         aux = label[:,:,:, 2:] # [n,b,t,d]
         label = label[:,:,:, :2] # [n,b,t,d]

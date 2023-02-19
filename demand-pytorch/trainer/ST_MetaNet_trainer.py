@@ -23,8 +23,6 @@ class ST_MetaNetTrainer(BaseTrainer):
         datasets = {}
         for category in ['train', 'val', 'test']:
             x, y = seq2instance(data[category].reshape(data[category].shape[0], -1), self.config.num_his, self.config.num_pred)
-            print("dataset:", category, x.shape)
-            print("dataset y:", category, y.shape)
             if category == 'train':
                 self.mean, self.std = np.mean(x), np.std(x)
             x = (x - self.mean) / self.std 
@@ -46,7 +44,6 @@ class ST_MetaNetTrainer(BaseTrainer):
     def setup_model(self):
         _, graph = self.load_dataset()
         self.model = ST_MetaNet.ST_MetaNetModel(graph= graph).to(self.device)
-        print(self.model)
 
     def compose_dataset(self):
         datasets, _= self.load_dataset()

@@ -53,3 +53,29 @@ class DMVSTNetDataset(Dataset):
 
     def __len__(self):
         return self.cnn.shape[0]
+
+class DeepSTNDataset(Dataset):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __getitem__(self, index):
+        x = self.x[index]
+        y = self.y[index]
+        return torch.tensor(x), torch.tensor(y)
+
+    def __len__(self):
+        return self.x.shape[0]
+    
+class ST_MetaNetDataset(Dataset):
+    def __init__(self, data):
+        self.x = data['x'].reshape(data['x'].shape[0], data['x'].shape[1], 32*32, 2)
+        self.y = data['y'].reshape(data['y'].shape[0], data['y'].shape[1], 32*32, 2)
+
+    def __getitem__(self, index):
+        x = self.x[index]
+        y = self.y[index]
+        return torch.tensor(x), torch.tensor(y)
+
+    def __len__(self):
+        return self.x.shape[0]

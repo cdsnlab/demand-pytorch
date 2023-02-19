@@ -2,13 +2,14 @@ import math
 import time
 import numpy as np 
 from data.utils import *
-from data.datasets import ConvLSTMDataset
+from data.datasets import ST_MetaNetDataset
 from torch.utils.data import DataLoader
 from trainer.base_trainer import BaseTrainer
 from util.logging import * 
 from logger.logger import Logger
+from model import ST_MetaNet
 
-class ConvLSTMTrainer(BaseTrainer):
+class ST_MetaNetTrainer(BaseTrainer):
     def __init__(self, cls, config, args):
         self.config = config
         self.device = self.config.device
@@ -21,29 +22,40 @@ class ConvLSTMTrainer(BaseTrainer):
             data = pickle.load(file)
         datasets = {}
         for category in ['train', 'val', 'test']:
-            print("dataset:", data[category].shape)
             x, y = seq2instance(data[category].reshape(data[category].shape[0], -1), self.config.num_his, self.config.num_pred)
-            print("dataset:", category, x.shape)
             if category == 'train':
                 self.mean, self.std = np.mean(x), np.std(x)
             x = (x - self.mean) / self.std 
             datasets[category] = {'x': x, 'y': y}
-        return datasets
+        
+        adj_feature = data['edge']
+        src, dst = np.where(np.sum(adj_feature, axis=2) > 0)
+        values = adj_feature[src, dst]
+        adj_feature = (adj_feature - np.mean(values, axis=0)) / (np.std(values, axis=0) + 1e-8)
+        graph = (adj_feature, src, dst)
+        
+        geo = data['node']
+        feat = (geo - np.mean(geo, axis=0)) / (np.std(geo, axis=0) + 1e-8)
+        Tensor = torch.cuda.FloatTensor
+        feat = Tensor(feat)
+        self.feat = feat
+        return datasets, graph
 
     def setup_model(self):
-        self.model = self.cls(self.config).to(self.device)
+        _, graph = self.load_dataset()
+        self.model = ST_MetaNet.ST_MetaNetModel(graph= graph).to(self.device)
 
     def compose_dataset(self):
-        datasets = self.load_dataset()
+        datasets, _= self.load_dataset()
         for category in ['train', 'val', 'test']:
-            datasets[category] = ConvLSTMDataset(datasets[category])
+            datasets[category] = ST_MetaNetDataset(datasets[category])
         self.num_train_iteration_per_epoch = math.ceil(len(datasets['train']) / self.config.batch_size)
         self.num_val_iteration_per_epoch = math.ceil(len(datasets['val']) / self.config.test_batch_size)
         self.num_test_iteration_per_epoch = math.ceil(len(datasets['test']) / self.config.test_batch_size)
         return datasets['train'], datasets['val'], datasets['test']
     
     def compose_loader(self):
-        train_dataset, val_dataset, test_dataset = self.compose_dataset()
+        train_dataset, val_dataset, test_dataset= self.compose_dataset()
         print(toGreen('Dataset loaded successfully ') + '| Train [{}] Test [{}] Val [{}]'.format(toGreen(len(train_dataset)), toGreen(len(test_dataset)), toGreen(len(val_dataset))))
         self.train_loader = DataLoader(train_dataset, batch_size=self.config.batch_size, shuffle=True)
         self.val_loader = DataLoader(val_dataset, batch_size=self.config.test_batch_size, shuffle=False)
@@ -54,16 +66,14 @@ class ConvLSTMTrainer(BaseTrainer):
         start_time = time.time()
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
-
+        
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device).float(), target.to(self.device).float()
             self.optimizer.zero_grad()
-
-            output = self.model(data)
-            output = output[:, -self.config.num_pred:]
+            output = self.model(data, self.feat, target, 1)
+            
             output = output * self.std 
             output = output + self.mean
-
             loss = self.loss(output, target) 
             loss.backward()
             self.optimizer.step()
@@ -88,13 +98,12 @@ class ConvLSTMTrainer(BaseTrainer):
         start_time = time.time()
         total_loss = 0
         total_metrics = np.zeros(len(self.metrics))
+        
 
         for batch_idx, (data, target) in enumerate(self.test_loader if is_test else self.val_loader):
             data, target = data.to(self.device).float(), target.to(self.device).float()
-
             with torch.no_grad():
-                output = self.model(data)
-            output = output[:, -self.config.num_pred:]
+                output = self.model(data, self.feat, target, 0)
             output = output * self.std 
             output = output + self.mean
 

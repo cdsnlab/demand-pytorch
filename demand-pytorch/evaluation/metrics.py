@@ -49,11 +49,11 @@ class MaskedMAPE(nn.Module):
         super().__init__()
 
     def forward(self, preds, labels):
-        mask = ~torch.isnan(labels)
+        mask = ~(torch.abs(labels) < 1e-6)
         mask = mask.to(torch.float32).to(preds.device)
-        mask /= torch.mean(mask)
+        labels = labels + (1-mask)
         loss = torch.abs(torch.divide(torch.subtract(preds, labels), labels))
-        loss = torch.nan_to_num(loss * mask)
+        loss = loss * mask 
         return torch.mean(loss)
 
 class RMSE(nn.Module):
@@ -71,6 +71,14 @@ class MAPE(nn.Module):
 
     def forward(self, preds, labels):
         loss = torch.abs(torch.divide(torch.subtract(preds, labels), labels))
-        loss = torch.where(loss>1e+20, 0, loss)
         loss = torch.nan_to_num(loss)
         return torch.mean(loss)
+
+class DMVSTNetLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.mape = MaskedMAPE()
+        self.rmse = RMSE()
+    
+    def forward(self, preds, labels):
+        return self.rmse(preds, labels) + 10 * self.mape(preds, labels)

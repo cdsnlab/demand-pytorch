@@ -10,10 +10,10 @@ class Logger():
     # TODO: Add more methods to log training and validation metrics
     def log_training(self, loss, metrics, epoch):
         self.logger.add_scalars('loss',{
-                'trainiing_loss': loss
+                'training_loss': loss
             }, epoch)
         self.logger.add_scalars('metrics',{
-                'trainiing_metrics': metrics
+                'training_metrics': metrics
         }, epoch)
 
     def log_validation(self, loss, metrics, epoch):

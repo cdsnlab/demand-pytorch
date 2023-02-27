@@ -9,7 +9,11 @@ class STSSL_config(BaseConfig):
         self.loss = 'MaskedRMSE'
         self.metrics = ['MaskedMAE']
         self.lr = 1e-4
-        self.total_epoch = 60 
+        self.scheduler_args = {
+			"milestones": [20],
+            "gamma": 0.2
+        }
+        self.total_epoch = 40 
         self.num_nodes = 1024
         self.d_input = 1                  # means inflow and outflow
         self.d_output = 2                 # means inflow and outflow

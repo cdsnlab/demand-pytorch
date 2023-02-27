@@ -5,9 +5,8 @@ class MDL_config(BaseConfig):
         # Data, Train
         super().__init__(device, dataset_dir, dataset_name, train_ratio, test_ratio)
 
-
-        self.batch_size = 16
-        self.lr = 5e-4
+        self.batch_size = 64
+        self.lr = 1e-3
         self.total_epoch = 200
         height = 10
         width = 20
@@ -15,7 +14,7 @@ class MDL_config(BaseConfig):
         edge_channels = 2 * height * width
         self.T = 48
         self.len_closeness = 3
-        self.len_period = 2
+        self.len_period = 7
         self.len_trend = 1
         self.node_conf = (self.len_closeness, node_channels, height, width)
         self.node_tconf = (self.len_trend, node_channels, height, width)
@@ -27,4 +26,4 @@ class MDL_config(BaseConfig):
         self.embed_dim = 64
         self.bridge = 'concat'
         self.loss = 'MaskedRMSE'
-        self.metrics = ['MaskedMAE']
+        self.metrics = ['RMSE', 'MaskedMAPE']

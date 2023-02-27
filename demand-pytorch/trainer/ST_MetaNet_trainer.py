@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 from trainer.base_trainer import BaseTrainer
 from util.logging import * 
 from logger.logger import Logger
-from model import ST_MetaNet
 
 class ST_MetaNetTrainer(BaseTrainer):
     def __init__(self, cls, config, args):
@@ -36,14 +35,13 @@ class ST_MetaNetTrainer(BaseTrainer):
         
         geo = data['node']
         feat = (geo - np.mean(geo, axis=0)) / (np.std(geo, axis=0) + 1e-8)
-        Tensor = torch.cuda.FloatTensor
-        feat = Tensor(feat)
+        feat = torch.tensor(feat).to(self.config.device)
         self.feat = feat
         return datasets, graph
 
     def setup_model(self):
         _, graph = self.load_dataset()
-        self.model = ST_MetaNet.ST_MetaNetModel(graph= graph).to(self.device)
+        self.model = self.cls(self.config, graph=graph).to(self.device)
 
     def compose_dataset(self):
         datasets, _= self.load_dataset()

@@ -20,3 +20,7 @@ class STResNet_config(BaseConfig):
         self.metrics = ['MaskedRMSE']
         self.lr = 5e-5
         self.total_epoch = 100 
+        self.scheduler_args = {
+			"milestones": [50],
+            "gamma": 0.5
+        }

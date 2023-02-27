@@ -122,7 +122,7 @@ class MetaGAT(nn.Module):
         state = torch.cat([edges.src['state'], edges.dst['state']], dim=-1)
         feature = torch.cat([edges.src['feature'], edges.dst['feature'], edges.data['dist']], dim=-1)
 
-        weight = self.w_mlp(feature.cuda())
+        weight = self.w_mlp(feature.to(edges.device))
         weight = weight.reshape(-1, self.hidden_size * 2, self.hidden_size)
 
         state = torch.reshape(state, (state.shape[0], -1, state.shape[-1]))
@@ -319,16 +319,16 @@ class Decoder(nn.Module):
         return output
 
 class ST_MetaNetModel(nn.Module):
-    def __init__(self, graph):
+    def __init__(self, config, graph):
         super(ST_MetaNetModel, self).__init__()
-        input_size = 2
-        hidden_size = 64
-        output_size = 2
-        self.fc = nn.Linear(2,64)
+        input_size = config.input_size
+        hidden_size = config.hidden_size
+        output_size = config.output_size
         self.encoder = Encoder(input_size, hidden_size, graph)
         self.decoder = Decoder(hidden_size, output_size, graph, 2000)
-        self.geo_encoder = MLP([32, 32], act_type='relu',out_act=True,input_dim=989)
+        self.geo_encoder = MLP([config.geo_feature_size, config.geo_feature_size], act_type='relu',out_act=True, input_dim=989)
         self.graph = graph
+        self.device = config.device
 
     def forward(self, x, feature, label, is_training):
         x = x.transpose(0,1)

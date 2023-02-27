@@ -1,70 +1,188 @@
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+
+# class SpatialTemporalGGCM(nn.Module):
+#     def __init__(self, in_channels, out_channels):
+#         super(SpatialTemporalGGCM, self).__init__()
+        
+#         self.gcn_layer = nn.ModuleList([
+#             nn.Conv2d(in_channels, out_channels, kernel_size=(1, 3), padding=(0, 1)).to('cuda'),
+#             nn.Conv2d(out_channels, out_channels, kernel_size=(1, 3), padding=(0, 1)).to('cuda')
+#         ])
+        
+#         self.attention_layer = nn.Sequential(
+#             nn.Conv2d(out_channels, out_channels, kernel_size=1).to('cuda'),
+#             nn.Sigmoid()
+#         )
+        
+#         self.gate_layer = nn.Sequential(
+#             nn.Conv2d(out_channels, out_channels, kernel_size=1).to('cuda'),
+#             nn.Sigmoid()
+#         )
+        
+#     def forward(self, x):
+#         # x shape: (batch_size, in_channels, num_nodes, num_frames)
+        
+#         # Spatial-temporal GCN
+#         x = self.gcn_layer[0](x)
+#         x = F.relu(x)
+#         x = self.gcn_layer[1](x)
+        
+#         # Spatial-temporal attention
+#         a = self.attention_layer(x)
+#         x = x * a
+        
+#         # Spatial-temporal gating
+#         g = self.gate_layer(x)
+#         x = x * g
+        
+#         return x
+
+
+# class STG2SeqModel(nn.Module):
+#     def __init__(self, in_channels, num_nodes, num_frames, hidden_size, out_channels):
+#         super(STG2SeqModel, self).__init__()
+        
+#         self.long_term_encoder = nn.ModuleList([
+#             SpatialTemporalGGCM(in_channels, hidden_size),
+#             SpatialTemporalGGCM(hidden_size, hidden_size),
+#             SpatialTemporalGGCM(hidden_size, hidden_size)
+#         ])
+        
+#         self.short_term_encoder = nn.ModuleList([
+#             SpatialTemporalGGCM(in_channels, hidden_size),
+#             SpatialTemporalGGCM(hidden_size, hidden_size),
+#             SpatialTemporalGGCM(hidden_size, hidden_size)
+#         ])
+        
+#         self.output_module = nn.Sequential(
+#             nn.Linear(hidden_size, hidden_size).to('cuda'),
+#             nn.ReLU(),
+#             nn.Linear(hidden_size, out_channels).to('cuda')
+#         )
+        
+#         self.num_nodes = num_nodes
+#         self.num_frames = num_frames
+        
+#     def forward(self, x):
+#         # x shape: (batch_size, in_channels, num_nodes, num_frames)
+        
+#         # Long-term encoding
+#         for module in self.long_term_encoder:
+#             x = module(x)
+#         long_term_output = x
+        
+#         # Short-term encoding
+#         for module in self.short_term_encoder:
+#             x = module(x)
+#         short_term_output = x
+#         # print(long_term_output.shape)
+#         # Attention-based output module
+#         output = self.output_module(short_term_output.permute(0, 3, 2, 1)).permute(0, 3, 2, 1)
+#         # attention_weights = F.softmax(torch.bmm(long_term_output.permute(0, 3, 2, 1).reshape(-1, long_term_output.shape[2], long_term_output.shape[3]), short_term_output.permute(0, 3, 1, 2).reshape(-1, long_term_output.shape[2], long_term_output.shape[3])), dim=2)
+#         # output = torch.bmm(attention_weights.permute(0, 2, 1), output.permute(0, 2, 1, 3)).permute(0, 2, 1, 3)
+        
+#         return output
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def graph_conv(inputs, supports, dim_in, dim_out, scope='gcn'):
-    dtype = inputs.dtype
-    num_nodes = inputs.shape[1]
-    assert num_nodes == supports.shape[0]
-    assert dim_in == inputs.shape[2]
-    order = int(supports.shape[1] / num_nodes)
+class STG2SeqModel(nn.Module):
+    def __init__(self, num_node, in_channel, out_channel):
+        super(STG2SeqModel, self).__init__()
+        
+        self.num_node = num_node
+        self.in_channel = in_channel
+        self.out_channel = out_channel
+        
+        # Long-term encoder
+        self.encoder_l = nn.Sequential(
+            nn.Conv2d(self.in_channel, 64, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(64).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(64).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(128).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(128, 256, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(256).to('cuda'),
+            nn.ReLU()
+        )
+        
+        # Short-term encoder
+        self.encoder_s = nn.Sequential(
+            nn.Conv2d(self.in_channel, 64, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(64).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(64).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(128).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(128, 256, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(256).to('cuda'),
+            nn.ReLU()
+        )
+        
+        # Hierarchical graph convolutional structure
+        self.hgc = nn.Sequential(
+            nn.Conv2d(512, 256, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(256).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(256).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(256).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(256).to('cuda'),
+            nn.ReLU()
+        )
+        
+        # Output module
+        self.output = nn.Sequential(
+            nn.Conv2d(256, 128, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(128).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(128, self.out_channel, kernel_size=1).to('cuda')
+        )
+        
+        # Attention mechanism
+        self.attention = nn.Sequential(
+            nn.Conv2d(256, 128, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(128).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(128, 128, kernel_size=1).to('cuda'),
+            nn.BatchNorm2d(128).to('cuda'),
+            nn.ReLU(),
+            nn.Conv2d(128, self.out_channel, kernel_size=1).to('cuda'),
+            nn.Softmax(dim=2)
+        )
+        
+    def forward(self, x):
+        # Long-term encoding
+        x_l = self.encoder_l(x)
+        x_l = x_l.mean(dim=2, keepdim=True)
+        
+        # Short-term encoding
+        x_s = self.encoder_s(x)
+        
+        # Concatenating long-term and short-term encodings
+        x = torch.cat((x_l.repeat(1, 1, self.num_node, 1), x_s), dim=1)
 
-    x_new = inputs.permute(0, 2, 1)
-    x_new = x_new.reshape(-1, num_nodes)
-    x_new = torch.matmul(x_new, supports)
-    x_new = x_new.reshape(-1, dim_in, order, num_nodes)
-    x_new = x_new.permute(0, 3, 1, 2)
-    x_new = x_new.reshape(-1, order * dim_in)
-
-    with torch.no_grad():
-        weights = nn.Parameter(torch.zeros(order * dim_in, dim_out, dtype=dtype))
-        biases = nn.Parameter(torch.zeros(dim_out, dtype=dtype))
-
-    outputs = torch.add(torch.matmul(x_new, weights), biases)
-    return outputs.reshape(-1, num_nodes, dim_out)
-
-class Conv_ST(nn.Module):
-    def __init__(self, kt, dim_in, dim_out, activation='GLU'):
-        super().__init__()
-        self.kt = kt
-        self.dim_in = dim_in
-        self.dim_out = dim_out
-        self.activation = activation
-        if (dim_in > dim_out):
-            self.w_input = nn.Parameter(torch.zeros(1, 1, dim_in, dim_out))
-            nn.init.xavier_normal_(self.w_input)
-        elif (dim_in < dim_out):
-            self.res_input = nn.Sequential(
-                nn.Identity(),
-                nn.ConstantPad3d((0, 0, 0, 0, 0, dim_out - dim_in), 0)
-            )
-        else:
-            self.res_input = nn.Identity()
-  
-    def forward(self, inputs, supports):
-        T = inputs.size(1)
-        num_nodes = inputs.size(2)
-        assert inputs.size(3) == self.dim_in
-        if (self.dim_in > self.dim_out):
-            res_input = F.conv2d(inputs, self.w_input, stride=1, padding=0)
-        else:
-            res_input = self.res_input(inputs)
-        # padding zero
-        padding = torch.zeros(inputs.size(0), self.kt - 1, num_nodes, self.dim_in)
-        # extract spatial-temporal relationships at the same time
-        inputs = torch.cat([padding, inputs], dim=1)
-        x_input = torch.stack([inputs[:, i:i + self.kt, :, :] for i in range(0, T)], dim=1)    #[B*T, kt, N, C]
-        x_input = x_input.view(-1, self.kt, num_nodes, self.dim_in)
-        x_input = x_input.permute(0, 2, 1, 3)
-
-        if (self.activation == 'GLU'):
-            conv_out = graph_conv(x_input.view(-1, num_nodes, self.kt * self.dim_in),
-                                  supports, self.kt * self.dim_in, 2 * self.dim_out)
-            conv_out = conv_out.view(-1, T, num_nodes, 2 * self.dim_out)
-            out = (conv_out[:, :, :, :self.dim_out] + res_input) * \
-                  torch.sigmoid(conv_out[:, :, :, self.dim_out:2 * self.dim_out])
-        if (self.activation == 'sigmoid'):
-            conv_out = graph_conv(torch.reshape(x_input, [-1, num_nodes, self.kt * self.dim_in]), supports)
-            out = torch.reshape(conv_out, [-1, T, num_nodes, self.dim_out])
-        return out
-
+        # Hierarchical graph convolutional structure
+        x = self.hgc(x)
+        
+        # Output module
+        x = self.output(x)
+        
+        # Attention mechanism
+        attn = self.attention(x_s)
+        x = x * attn
+        return x

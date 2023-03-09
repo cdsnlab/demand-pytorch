@@ -122,12 +122,12 @@ class MetaGAT(nn.Module):
         state = torch.cat([edges.src['state'], edges.dst['state']], dim=-1)
         feature = torch.cat([edges.src['feature'], edges.dst['feature'], edges.data['dist']], dim=-1)
 
-        weight = self.w_mlp(feature.cuda())
+        weight = self.w_mlp(feature.to('cuda'))
         weight = weight.reshape(-1, self.hidden_size * 2, self.hidden_size)
 
         state = torch.reshape(state, (state.shape[0], -1, state.shape[-1]))
         # print(state.shape, weight.shape)
-        r = torch.bmm(state.cuda(), weight.cuda())
+        r = torch.bmm(state.cpu(), weight.cpu())
         alpha = F.leaky_relu(r).cpu()
 
         return { 'alpha': alpha, 'state': edges.src['state'] }
@@ -146,10 +146,11 @@ class MetaGAT(nn.Module):
 
 class MyGRUCell(nn.Module):
     """ A common GRU Cell. """
-    def __init__(self,input_size ,hidden_size):
+    def __init__(self,input_size ,hidden_size, config):
         super(MyGRUCell, self).__init__()
         self.hidden_size = hidden_size
         self.cell = nn.GRU(input_size, self.hidden_size, batch_first=True)
+        self.device = config.device
 
     def forward_single(self, feature, data, begin_state):
         # add a temporal axis
@@ -171,7 +172,7 @@ class MyGRUCell(nn.Module):
             begin_state = [
                 torch.reshape(state, (n * b, -1)) for state in begin_state
             ] # [n * b, d]
-            data, state = self.cell(data.cuda(), begin_state[0].unsqueeze(0)) 
+            data, state = self.cell(data.to(self.device), begin_state[0].unsqueeze(0)) 
         else:
             data, state = self.cell(data)
         # reshape the data & states back
@@ -184,12 +185,14 @@ class MyGRUCell(nn.Module):
 class MetaGRUCell(nn.Module):
     """ Meta GRU Cell. """
 
-    def __init__(self, pre_hidden_size, hidden_size):
+    def __init__(self, pre_hidden_size, hidden_size, config):
         super(MetaGRUCell, self).__init__()
         self.pre_hidden_size = pre_hidden_size
         self.hidden_size = hidden_size
         self.dense_z = MetaDense(pre_hidden_size + hidden_size, hidden_size)
         self.dense_r = MetaDense(pre_hidden_size + hidden_size, hidden_size)
+        self.device = config.device
+        self.num_his = config.num_his
 
         self.dense_i2h = MetaDense(pre_hidden_size, hidden_size)
         self.dense_h2h = MetaDense(hidden_size, hidden_size)
@@ -213,7 +216,7 @@ class MetaGRUCell(nn.Module):
             num_nodes, batch_size, _= data.shape
             begin_state = [torch.zeros((num_nodes, batch_size, self.hidden_size))]
 
-        prev_state = begin_state[0].cuda()
+        prev_state = begin_state[0].to(self.device)
         # print(data.shape, prev_state.shape)
         data_and_state = torch.concat((data, prev_state), dim=-1)
         z = nn.Sigmoid()(self.dense_z(feature, data_and_state))
@@ -234,40 +237,44 @@ class MetaGRUCell(nn.Module):
             outputs.append(output)
 
         outputs = torch.stack(outputs, dim=2)
-        outputs = torch.reshape(outputs, (1024,-1, 64))
+        outputs = torch.reshape(outputs, (1024,-1, self.hidden_size))
         return outputs, state    
 
 class Encoder(nn.Module):
-    def __init__(self, input_size, hidden_size, graph):
+    def __init__(self, input_size, hidden_size, graph, config):
         super(Encoder, self).__init__()
         self.hidden_size = hidden_size
-        self.gru = MyGRUCell(2, 64)
+        self.gru = MyGRUCell(2, hidden_size, config)
         dist, src, dst = graph
         self.metagat = MetaGAT(dist, src, dst, hidden_size)
-        self.metagru = MetaGRUCell(64, 64)
+        self.metagru = MetaGRUCell(hidden_size, hidden_size, config)
+        self.device = config.device
+        self.num_his = config.num_his
         
     def forward(self, input, feature):
         states = []
-        input = torch.reshape(input, (1024, -1, 12, 2))
+        input = torch.reshape(input, (1024, -1, self.num_his, 2))
         output, state = self.gru(feature, input, None)
         states.append(state)
-        tmp = torch.reshape(self.metagat(output, feature), output.shape).cuda()
+        tmp = torch.reshape(self.metagat(output, feature), output.shape).to(self.device)
         output = output + tmp
         output, state = self.metagru(feature, output, None)
         states.append(state)
         return states
 
 class Decoder(nn.Module):
-    def __init__(self, hidden_size, output_size, graph, cl_decay_steps):
+    def __init__(self, hidden_size, output_size, graph, cl_decay_steps, config):
         super(Decoder, self).__init__()
         self.cl_decay_steps = cl_decay_steps
         self.global_steps = 0.0
         self.hidden_size = hidden_size
         self.proj = nn.Linear(96, output_size)
         dist, src, dst = graph
-        self.gru = MyGRUCell(2, 64)
+        self.gru = MyGRUCell(2, hidden_size, config)
         self.metagat = MetaGAT(dist, src, dst, hidden_size)
-        self.metagru = MetaGRUCell(64, 64)
+        self.metagru = MetaGRUCell(hidden_size, hidden_size, config)
+        self.device = config.device
+        self.num_his = config.num_his
         
     def sampling(self):
         """ Schedule sampling: sampling the ground truth. """
@@ -296,10 +303,10 @@ class Decoder(nn.Module):
                 data = value * truth + (1 - value) * prev
             # print("data 0",data.shape)
             data, states[0] = self.gru.forward_single(feature, data, states[0])
-            tmp = torch.reshape(self.metagat(data, feature), data.shape).cuda()
+            tmp = torch.reshape(self.metagat(data, feature), data.shape).to(self.device)
             data = data + tmp
             if i==0:
-                st = torch.reshape(states[1][0], (1024, -1, 12, 64))
+                st = torch.reshape(states[1][0], (1024, -1, self.num_his, self.hidden_size))
                 states[1][0] =  torch.mean(st,2,True).squeeze(2)
             
             data, states[1] = self.metagru.forward_single(feature, data, states[1])
@@ -319,16 +326,17 @@ class Decoder(nn.Module):
         return output
 
 class ST_MetaNetModel(nn.Module):
-    def __init__(self, graph):
+    def __init__(self, config, graph):
         super(ST_MetaNetModel, self).__init__()
-        input_size = 2
-        hidden_size = 64
-        output_size = 2
-        self.fc = nn.Linear(2,64)
-        self.encoder = Encoder(input_size, hidden_size, graph)
-        self.decoder = Decoder(hidden_size, output_size, graph, 2000)
-        self.geo_encoder = MLP([32, 32], act_type='relu',out_act=True,input_dim=989)
+        input_size = config.input_size
+        hidden_size = config.hidden_size
+        output_size = config.output_size
+        cl_decay_steps = config.cl_decay_steps
+        self.encoder = Encoder(input_size, hidden_size, graph, config)
+        self.decoder = Decoder(hidden_size, output_size, graph, cl_decay_steps, config)
+        self.geo_encoder = MLP([config.geo_feature_size, config.geo_feature_size], act_type='relu',out_act=True, input_dim=config.input_dim)
         self.graph = graph
+        self.device = config.device
 
     def forward(self, x, feature, label, is_training):
         x = x.transpose(0,1)

@@ -61,7 +61,7 @@ class BaseTrainer:
         total_loss, total_metrics = self.validate_epoch(epoch, is_test)
         avg_loss = total_loss / len(self.test_loader if is_test else self.val_loader)
         avg_metrics = total_metrics / len(self.test_loader if is_test else self.val_loader)
-        self.logger.log_validation(avg_loss, avg_metrics, epoch)
+        self.logger.log_validation(avg_loss, avg_metrics, self.config.metrics, epoch)
         print_total('TEST' if is_test else 'VALID', epoch, self.config.total_epoch, self.config.loss, avg_loss, self.config.metrics, avg_metrics)
 
     @abstractmethod 
@@ -76,7 +76,7 @@ class BaseTrainer:
             total_loss, total_metrics = self.train_epoch(epoch)
             avg_loss = total_loss / len(self.train_loader)
             avg_metrics = total_metrics / len(self.train_loader)
-            self.logger.log_training(avg_loss, avg_metrics, epoch) 
+            self.logger.log_training(avg_loss, avg_metrics, self.config.metrics, epoch) 
             print_total('TRAIN', epoch, self.config.total_epoch, self.config.loss, avg_loss, self.config.metrics, avg_metrics)
             if epoch % self.config.valid_every_epoch == 0:
                 self.validate(epoch, is_test=False)
